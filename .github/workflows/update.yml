@@ -1,19 +1,24 @@
 name: Value Bet Bot
 on:
   schedule:
-    - cron: '*/30 * * * *' # Rulează la fiecare 30 de minute
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4  # Am actualizat la v4
+        
       - name: Setup Python
-        uses: actions/setup-python@v4
-        with: {python-version: '3.10'}
+        uses: actions/setup-python@v5  # Am actualizat la v5
+        with:
+          python-version: '3.10'
+          
       - name: Install requests
         run: pip install requests
+        
       - name: Run Bot
         env:
           API_KEY: ${{ secrets.API_KEY }}
