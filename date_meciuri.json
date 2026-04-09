@@ -1,25 +1,4 @@
 {
-    "ultima_actualizare": "24 Octombrie 2023, 14:30",
-    "meciuri": [
-        {
-            "echipa_gazda": "Real Madrid",
-            "echipa_oaspete": "Barcelona",
-            "data_ora": "28 Oct 21:00",
-            "tip_pariu": "Peste 2.5 Goluri",
-            "cota_reala": 1.75,
-            "cota_gasita": 1.95,
-            "casa_pariuri": "Superbet",
-            "value_procent": 11.4
-        },
-        {
-            "echipa_gazda": "FCSB",
-            "echipa_oaspete": "CFR Cluj",
-            "data_ora": "Azi 20:30",
-            "tip_pariu": "1 Solist",
-            "cota_reala": 2.10,
-            "cota_gasita": 2.25,
-            "casa_pariuri": "Betano",
-            "value_procent": 7.1
-        }
-    ]
+    "ultima_actualizare": "09 April 2026, 20:48",
+    "meciuri": []
 }
