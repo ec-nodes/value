@@ -1,28 +1,22 @@
-name: Update Value Bets
-
+name: Value Bet Bot
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '*/30 * * * *' # Rulează la fiecare 30 de minute
   workflow_dispatch:
 
 jobs:
-  update-data:
+  scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
         uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          playwright install chromium
-      - name: Run Scraper
+        with: {python-version: '3.10'}
+      - name: Install requests
+        run: pip install requests
+      - name: Run Bot
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scraper.py
-      - name: Commit and Push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add date_meciuri.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update cote" && git push)
