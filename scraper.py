@@ -1,47 +1,50 @@
 from playwright.sync_api import sync_playwright
-import time
+from bs4 import BeautifulSoup
+import json
+from datetime import datetime
 
-def scaneaza_casa_pariuri():
+def get_odds_from_flashscore():
     with sync_playwright() as p:
-        # Deschidem un browser invizibil (headless=True)
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
+        # Flashscore are nevoie de un User-Agent real
+        page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"})
         
-        # Setăm un "User-Agent" ca să părem un om pe Windows, nu un robot
-        page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"})
-
-        print("Accesăm site-ul...")
-        # Aici pui link-ul către categoria de fotbal a casei de pariuri
-        page.goto("https://www.exemplu-casa-pariuri.ro/fotbal")
+        print("Accesăm Flashscore...")
+        page.goto("https://www.flashscore.ro/fotbal/")
+        page.wait_for_timeout(5000) # Așteptăm încărcarea JS
         
-        # Așteptăm 5 secunde să se încarce cotele (JavaScript-ul)
-        time.sleep(5)
+        html = page.content()
+        soup = BeautifulSoup(html, 'html.parser')
         
-        # Acum trebuie să căutăm elementele HTML care conțin cotele.
-        # ATENȚIE: Aceste clase (".nume-echipa", ".cota") diferă de la site la site!
-        # Trebuie să dai click dreapta pe site -> Inspect Element ca să afli clasele reale.
-        
-        meciuri = page.query_selector_all('.rand-meci') # Clasa fictivă pentru rândul meciului
-        
-        rezultate = []
-        for meci in meciuri:
+        meciuri = []
+        # Căutăm containerele de meciuri (clasele pot varia, trebuie verificate periodic)
+        for event in soup.select('.event__match'):
             try:
-                gazda = meci.query_selector('.echipa-gazda').inner_text()
-                oaspete = meci.query_selector('.echipa-oaspete').inner_text()
-                cota_1 = meci.query_selector('.cota-1').inner_text()
-                
-                print(f"Găsit: {gazda} vs {oaspete} | Cota 1: {cota_1}")
-                
-                rezultate.append({
-                    "meci": f"{gazda} - {oaspete}",
-                    "cota_1": float(cota_1)
-                })
+                gazda = event.select_one('.event__participant--home').text.strip()
+                oaspete = event.select_one('.event__participant--away').text.strip()
+                # Extragem cotele (exemplu simplificat)
+                cote = event.select('.event__odds')
+                if len(cote) >= 3:
+                    meciuri.append({
+                        "echipa_gazda": gazda,
+                        "echipa_oaspete": oaspete,
+                        "cota_1": cote[0].text.strip(),
+                        "cota_x": cote[1].text.strip(),
+                        "cota_2": cote[2].text.strip()
+                    })
             except:
-                continue # Dacă un meci nu are cote, trecem mai departe
-                
+                continue
+        
         browser.close()
-        return rezultate
+        return meciuri
 
-# Rulăm funcția
-date_extrase = scaneaza_casa_pariuri()
-print(date_extrase)
+# Salvarea datelor
+data = get_odds_from_flashscore()
+output = {
+    "ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"),
+    "meciuri": data
+}
+
+with open('date_meciuri.json', 'w', encoding='utf-8') as f:
+    json.dump(output, f, indent=4, ensure_ascii=False)
