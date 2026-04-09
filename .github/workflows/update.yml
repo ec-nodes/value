@@ -1,0 +1,35 @@
+name: Update Value Bets
+
+on:
+  schedule:
+    # Rulează la fiecare 6 ore (pentru a nu consuma cele 500 de request-uri gratuite prea repede)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Îți permite să rulezi manual din interfața GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Run Scraper
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+        run: python scraper.py
+        
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add date_meciuri.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update value bets" && git push)
