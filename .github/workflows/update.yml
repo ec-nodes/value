@@ -1,4 +1,4 @@
-name: Value Bet Bot
+name: Free Value Bet Bot
 
 on:
   schedule:
@@ -11,20 +11,17 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
+      - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
-      - name: Install requests
-        run: pip install requests
-        
-      - name: Run Bot
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+      - name: Run Scraper
         env:
-          API_KEY: ${{ secrets.API_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scraper.py
