@@ -11,27 +11,22 @@ CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 def send_telegram(message):
     if TOKEN and CHAT_ID:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
-        try:
-            requests.get(url)
-        except:
-            pass
+        try: requests.get(url)
+        except: pass
 
 def check_bets():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"})
-        
-        page.goto("https://www.flashscore.ro/fotbal/")
-        page.wait_for_timeout(15000) 
+        # Accesăm Livescore.in
+        page.goto("https://www.livescore.in/ro/fotbal/")
+        page.wait_for_timeout(10000)
         
         soup = BeautifulSoup(page.content(), 'html.parser')
-        meciuri = soup.find_all('div', class_=lambda x: x and 'event__match' in x)
-        
-        print(f"DEBUG: Am găsit {len(meciuri)} meciuri.")
+        # Pe Livescore, meciurile sunt în div-uri cu clasa 'event__match'
+        meciuri = soup.select('.event__match')
         
         lista_meciuri = []
-        
         for event in meciuri:
             try:
                 gazda = event.select_one('.event__participant--home').text.strip()
@@ -54,19 +49,12 @@ def check_bets():
                         "value_procent": round(((cota_1/media)-1)*100, 2),
                         "is_value": is_value
                     })
-                    
-                    if is_value:
-                        send_telegram(f"🔥 VALUE BET: {gazda} vs {oaspete} | Cota: {cota_1}")
-            except:
-                continue
+            except: continue
         
-        output = {
-            "ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"),
-            "meciuri": lista_meciuri
-        }
+        # Salvare
+        output = {"ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"), "meciuri": lista_meciuri}
         with open('date_meciuri.json', 'w', encoding='utf-8') as f:
             json.dump(output, f, indent=4, ensure_ascii=False)
-            
         browser.close()
 
 if __name__ == "__main__":
