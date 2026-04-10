@@ -5,38 +5,33 @@ import os
 import json
 from datetime import datetime
 
-TOKEN = os.environ.get('TELEGRAM_TOKEN')
-CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-
-def send_telegram(message):
-    if TOKEN and CHAT_ID:
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
-        try: requests.get(url)
-        except: pass
-
 def check_bets():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        # Accesăm Livescore.in
-        page.goto("https://www.livescore.in/ro/fotbal/")
-        page.wait_for_timeout(10000)
+        page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"})
         
+        page.goto("https://www.flashscore.ro/fotbal/")
+        page.wait_for_timeout(15000)
+        
+        # Flashscore folosește acum clase dinamice, dar structura de bază rămâne
+        # Căutăm containerele de meciuri după un selector mai permisiv
         soup = BeautifulSoup(page.content(), 'html.parser')
-        # Pe Livescore, meciurile sunt în div-uri cu clasa 'event__match'
-        meciuri = soup.select('.event__match')
+        meciuri = soup.find_all('div', {'class': lambda x: x and 'event__match' in x})
         
         lista_meciuri = []
         for event in meciuri:
             try:
+                # Căutăm numele echipelor
                 gazda = event.select_one('.event__participant--home').text.strip()
                 oaspete = event.select_one('.event__participant--away').text.strip()
-                cote = event.select('.event__odds')
                 
+                # Căutăm cotele
+                cote = event.select('.event__odds')
                 if len(cote) >= 3:
-                    cota_1 = float(cote[0].text.strip())
-                    cota_x = float(cote[1].text.strip())
-                    cota_2 = float(cote[2].text.strip())
+                    cota_1 = float(cote[0].text.strip().replace(',', '.'))
+                    cota_x = float(cote[1].text.strip().replace(',', '.'))
+                    cota_2 = float(cote[2].text.strip().replace(',', '.'))
                     
                     media = (cota_1 + cota_x + cota_2) / 3
                     is_value = cota_1 > (media * 1.05)
@@ -49,7 +44,8 @@ def check_bets():
                         "value_procent": round(((cota_1/media)-1)*100, 2),
                         "is_value": is_value
                     })
-            except: continue
+            except:
+                continue
         
         # Salvare
         output = {"ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"), "meciuri": lista_meciuri}
