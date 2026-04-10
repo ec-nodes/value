@@ -66,3 +66,8 @@ tr:hover {
     color: #ffd600;
     font-weight: bold;
 }
+
+.value-row {
+    background-color: rgba(0, 200, 83, 0.2) !important;
+    border-left: 5px solid #00c853;
+}
