@@ -1,36 +1,15 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Value Bet Scanner Privat</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📊 Value Bet Scanner</h1>
-            <p>Ultima actualizare: <span id="last-update">Se încarcă...</span></p>
-            <button onclick="incarcaDate()">🔄 Reîmprospătează</button>
-        </header>
-
-        <table id="bets-table">
-            <thead>
-                <tr>
-                    <th>Meci</th>
-                    <th>Pariu</th>
-                    <th>Cota Reală (Pinnacle)</th>
-                    <th>Cota Găsită</th>
-                    <th>Casa de Pariuri</th>
-                    <th>Value (%)</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <!-- Datele vor fi introduse aici automat de JavaScript -->
-            </tbody>
-        </table>
-    </div>
-
+    <table>
+        <thead>
+            <tr><th>Meci</th><th>Casa</th><th>Cota Ta</th><th>Media Pieței</th><th>Value</th></tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+    </table>
     <script src="script.js"></script>
 </body>
 </html>
