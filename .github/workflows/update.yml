@@ -2,14 +2,15 @@ name: Free Value Bet Bot
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
+    - cron: '*/30 * * * *' # Rulează la fiecare 30 de minute
+  workflow_dispatch: # Permite rularea manuală din tab-ul Actions
+
+permissions:
+  contents: write # NECESAR pentru a putea face commit și push
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,18 +23,18 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          playwright install chromium
           
       - name: Run Scraper
         env:
-          API_TOKEN: ${{ secrets.API_KEY }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          API_KEY: ${{ secrets.API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scraper.py
         
-      - name: Commit and Push changes
+      - name: Commit changes
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
           git add date_meciuri.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update date_meciuri.json" && git push)
+          git commit -m "Update meciuri" || exit 0
+          git push
