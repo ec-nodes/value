@@ -1,57 +1,41 @@
 import requests
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
-import os
 import json
+import os
 from datetime import datetime
 
-def check_bets():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"})
-        
-        page.goto("https://www.flashscore.ro/fotbal/")
-        page.wait_for_timeout(15000)
-        
-        # Flashscore folosește acum clase dinamice, dar structura de bază rămâne
-        # Căutăm containerele de meciuri după un selector mai permisiv
-        soup = BeautifulSoup(page.content(), 'html.parser')
-        meciuri = soup.find_all('div', {'class': lambda x: x and 'event__match' in x})
-        
-        lista_meciuri = []
-        for event in meciuri:
-            try:
-                # Căutăm numele echipelor
-                gazda = event.select_one('.event__participant--home').text.strip()
-                oaspete = event.select_one('.event__participant--away').text.strip()
-                
-                # Căutăm cotele
-                cote = event.select('.event__odds')
-                if len(cote) >= 3:
-                    cota_1 = float(cote[0].text.strip().replace(',', '.'))
-                    cota_x = float(cote[1].text.strip().replace(',', '.'))
-                    cota_2 = float(cote[2].text.strip().replace(',', '.'))
-                    
-                    media = (cota_1 + cota_x + cota_2) / 3
-                    is_value = cota_1 > (media * 1.05)
-                    
-                    lista_meciuri.append({
-                        "echipa_gazda": gazda,
-                        "echipa_oaspete": oaspete,
-                        "cota_1": cota_1,
-                        "cota_reala": round(media, 2),
-                        "value_procent": round(((cota_1/media)-1)*100, 2),
-                        "is_value": is_value
-                    })
-            except:
-                continue
-        
-        # Salvare
-        output = {"ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"), "meciuri": lista_meciuri}
-        with open('date_meciuri.json', 'w', encoding='utf-8') as f:
-            json.dump(output, f, indent=4, ensure_ascii=False)
-        browser.close()
+# Folosește secretul din GitHub
+API_KEY = os.environ.get('API_KEY') 
+# Scanează Premier League
+URL = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey={API_KEY}&regions=eu&markets=h2h"
 
-if __name__ == "__main__":
-    check_bets()
+def get_data():
+    response = requests.get(URL)
+    if response.status_code != 200: return []
+    
+    data = response.json()
+    lista = []
+    for match in data:
+        # Căutăm Pinnacle (cota reală)
+        pinnacle = next((b for b in match['bookmakers'] if b['key'] == 'pinnacle'), None)
+        if not pinnacle: continue
+        
+        # Căutăm o altă casă (ex: Unibet)
+        unibet = next((b for b in match['bookmakers'] if b['key'] == 'unibet'), None)
+        if not unibet: continue
+        
+        cota_reala = pinnacle['markets'][0]['outcomes'][0]['price']
+        cota_gasita = unibet['markets'][0]['outcomes'][0]['price']
+        
+        lista.append({
+            "echipa_gazda": match['home_team'],
+            "echipa_oaspete": match['away_team'],
+            "cota_1": cota_gasita,
+            "cota_reala": cota_reala,
+            "value_procent": round(((cota_gasita/cota_reala)-1)*100, 2),
+            "is_value": cota_gasita > (cota_reala * 1.03)
+        })
+    return lista
+
+output = {"ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"), "meciuri": get_data()}
+with open('date_meciuri.json', 'w', encoding='utf-8') as f:
+    json.dump(output, f, indent=4, ensure_ascii=False)
