@@ -58,12 +58,12 @@ tr:hover {
 }
 
 .value-high {
-    color: #00e676;
+    color: #00e676 !important; /* Verde aprins */
     font-weight: bold;
 }
 
 .value-medium {
-    color: #ffd600;
+    color: #ffd600 !important; /* Galben */
     font-weight: bold;
 }
 
