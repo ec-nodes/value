@@ -57,10 +57,10 @@ tr:hover {
     background-color: #2a2a2a;
 }
 
-.value-row {
-    background-color: rgba(0, 200, 83, 0.2) !important;
-    border-left: 5px solid #00c853;
-}
+.value-row { background-color: #d4edda; color: #155724; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; }
+td, th { border: 1px solid #ddd; padding: 8px; }
+
 .value-high {
     color: #00e676 !important;
     font-weight: bold;
