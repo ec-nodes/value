@@ -2,15 +2,16 @@ import requests
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
-import json  # <--- Adăugat
-from datetime import datetime  # <--- Adăugat
+import json
+from datetime import datetime
 
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 
 def send_telegram(message):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
-    requests.get(url)
+    if TOKEN and CHAT_ID:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
+        requests.get(url)
 
 def check_bets():
     with sync_playwright() as p:
@@ -24,7 +25,7 @@ def check_bets():
         soup = BeautifulSoup(page.content(), 'html.parser')
         meciuri = soup.select('.event__match')
         
-        meciuri_gasite_pentru_json = [] 
+        lista_meciuri = []
         
         for event in meciuri:
             try:
@@ -36,29 +37,27 @@ def check_bets():
                     cota_1 = float(cote[0].text.strip())
                     cota_x = float(cote[1].text.strip())
                     cota_2 = float(cote[2].text.strip())
-                    media = (cota_1 + cota_x + cota_2) / 3
                     
-                    if cota_1 > (media * 1.05):
-                        meciuri_gasite_pentru_json.append({
-                            "echipa_gazda": gazda,
-                            "echipa_oaspete": oaspete,
-                            "data_ora": "Azi",
-                            "tip_pariu": "1",
-                            "cota_reala": round(media, 2),
-                            "cota_gasita": cota_1,
-                            "casa_pariuri": "Flashscore",
-                            "value_procent": round(((cota_1/media)-1)*100, 2)
-                        })
-                        
-                        msg = f"🔥 VALUE BET: {gazda} vs {oaspete} | Cota: {cota_1}"
-                        send_telegram(msg)
+                    media = (cota_1 + cota_x + cota_2) / 3
+                    is_value = cota_1 > (media * 1.05)
+                    
+                    lista_meciuri.append({
+                        "echipa_gazda": gazda,
+                        "echipa_oaspete": oaspete,
+                        "cota_1": cota_1,
+                        "cota_reala": round(media, 2),
+                        "value_procent": round(((cota_1/media)-1)*100, 2),
+                        "is_value": is_value
+                    })
+                    
+                    if is_value:
+                        send_telegram(f"🔥 VALUE BET: {gazda} vs {oaspete} | Cota: {cota_1}")
             except:
                 continue
         
-        # SALVARE ÎN JSON
         output = {
             "ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"),
-            "meciuri": meciuri_gasite_pentru_json
+            "meciuri": lista_meciuri
         }
         with open('date_meciuri.json', 'w', encoding='utf-8') as f:
             json.dump(output, f, indent=4, ensure_ascii=False)
