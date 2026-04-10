@@ -11,7 +11,10 @@ CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 def send_telegram(message):
     if TOKEN and CHAT_ID:
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
-        requests.get(url)
+        try:
+            requests.get(url)
+        except:
+            pass
 
 def check_bets():
     with sync_playwright() as p:
@@ -20,10 +23,12 @@ def check_bets():
         page.set_extra_http_headers({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"})
         
         page.goto("https://www.flashscore.ro/fotbal/")
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(15000) 
         
         soup = BeautifulSoup(page.content(), 'html.parser')
-        meciuri = soup.select('.event__match')
+        meciuri = soup.find_all('div', class_=lambda x: x and 'event__match' in x)
+        
+        print(f"DEBUG: Am găsit {len(meciuri)} meciuri.")
         
         lista_meciuri = []
         
