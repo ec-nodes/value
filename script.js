@@ -17,7 +17,7 @@ async function incarcaDate() {
                     <td>1</td>
                     <td>${meci.cota_reala}</td>
                     <td><strong>${meci.cota_1}</strong></td>
-                    <td>Pinnacle/Unibet</td>
+                    <td>Unibet</td>
                     <td>${meci.value_procent}%</td>
                 </tr>
             `;
