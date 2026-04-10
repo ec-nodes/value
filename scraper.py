@@ -1,54 +1,52 @@
+import requests
+import json
+import os
+from datetime import datetime
+
+API_KEY = os.environ.get('API_KEY')
+# Folosim Bundesliga pentru Germania
+URL = f"https://api.the-odds-api.com/v4/sports/soccer_germany_bundesliga/odds/?apiKey={API_KEY}&regions=eu&markets=h2h"
+
 def get_data():
-    # Folosim 'eu' pentru a include casele din Germania
-    response = requests.get(URL) # URL-ul are deja regions=eu din variabila globală
-    if response.status_code != 200: 
-        print(f"Eroare API: {response.status_code}")
-        return []
+    response = requests.get(URL)
+    if response.status_code != 200: return []
     
     data = response.json()
     lista = []
     
     for match in data:
-        # Debug: Afișează ce case de pariuri sunt disponibile pentru acest meci
-        bookmakers = [b['key'] for b in match['bookmakers']]
-        print(f"Meci: {match['home_team']} vs {match['away_team']} | Case: {bookmakers}")
-
-        # Căutăm Pinnacle (ca referință) și Betano (ca sursă de pariu)
-        pinnacle = next((b for b in match['bookmakers'] if b['key'] == 'pinnacle'), None)
-        betano = next((b for b in match['bookmakers'] if b['key'] == 'betano'), None)
+        # Extragem toate cotele disponibile pentru "1" (gazda)
+        cote = []
+        for bookmaker in match['bookmakers']:
+            for market in bookmaker['markets']:
+                if market['key'] == 'h2h':
+                    cote.append(market['outcomes'][0]['price'])
         
-        # Dacă nu găsim Pinnacle, sărim peste meci (nu avem referință)
-        if not pinnacle: continue
+        if not cote: continue
         
-        # Luăm cota de la Pinnacle
-        cota_reala = pinnacle['markets'][0]['outcomes'][0]['price']
+        # Calculăm media pieței (cota "corectă" teoretică)
+        cota_medie = sum(cote) / len(cote)
         
-        # Dacă avem Betano, comparăm, dacă nu, luăm Tipico
-        casa_pariu = betano if betano else next((b for b in match['bookmakers'] if b['key'] == 'tipico'), None)
+        # Căutăm Betano sau Tipico
+        casa = next((b for b in match['bookmakers'] if b['key'] in ['betano', 'tipico']), None)
+        if not casa: continue
         
-        if not casa_pariu: continue
+        cota_noastra = casa['markets'][0]['outcomes'][0]['price']
         
-        cota_gasita = casa_pariu['markets'][0]['outcomes'][0]['price']
+        # Value Bet: Cota noastră e mai mare decât media pieței
+        value_procent = round(((cota_noastra / cota_medie) - 1) * 100, 2)
         
-        # Calculăm valoarea
-        value_procent = round(((cota_gasita / cota_reala) - 1) * 100, 2)
-        
-        # Definim ce înseamnă Value pentru tine (ex: > 2%)
-        is_value = value_procent > 2.0 
-        
-        meci = {
+        lista.append({
             "echipa_gazda": match['home_team'],
             "echipa_oaspete": match['away_team'],
-            "cota_1": cota_gasita,
-            "cota_reala": cota_reala,
+            "cota_pariu": cota_noastra,
+            "cota_medie": round(cota_medie, 2),
             "value_procent": value_procent,
-            "is_value": is_value
-        }
-        
-        # Trimitem notificare doar dacă este un Value Bet real
-        if is_value:
-            send_telegram_message(meci)
-            
-        lista.append(meci)
-            
+            "casa": casa['key'],
+            "is_value": value_procent > 1.5 # Prag de 1.5%
+        })
     return lista
+
+output = {"ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"), "meciuri": get_data()}
+with open('date_meciuri.json', 'w', encoding='utf-8') as f:
+    json.dump(output, f, indent=4, ensure_ascii=False)
