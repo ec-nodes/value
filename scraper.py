@@ -2,6 +2,8 @@ import requests
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
+import json  # <--- Adăugat
+from datetime import datetime  # <--- Adăugat
 
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
@@ -22,7 +24,8 @@ def check_bets():
         soup = BeautifulSoup(page.content(), 'html.parser')
         meciuri = soup.select('.event__match')
         
-        gasite = 0
+        meciuri_gasite_pentru_json = [] 
+        
         for event in meciuri:
             try:
                 gazda = event.select_one('.event__participant--home').text.strip()
@@ -33,22 +36,33 @@ def check_bets():
                     cota_1 = float(cote[0].text.strip())
                     cota_x = float(cote[1].text.strip())
                     cota_2 = float(cote[2].text.strip())
-                    
-                    # Calculăm media pieței
                     media = (cota_1 + cota_x + cota_2) / 3
                     
-                    # FILTRU: Dacă cota 1 este mai mare decât media pieței cu 5% (1.05)
-                    # Am scăzut pragul de la 1.15 la 1.05 ca să găsească mai multe oportunități
                     if cota_1 > (media * 1.05):
-                        msg = (f"🔥 VALUE BET DETECTAT!\n"
-                               f"⚽ {gazda} vs {oaspete}\n"
-                               f"✅ Pariu: 1 (Cota {cota_1})\n"
-                               f"📊 Media pieței: {round(media, 2)}")
+                        meciuri_gasite_pentru_json.append({
+                            "echipa_gazda": gazda,
+                            "echipa_oaspete": oaspete,
+                            "data_ora": "Azi",
+                            "tip_pariu": "1",
+                            "cota_reala": round(media, 2),
+                            "cota_gasita": cota_1,
+                            "casa_pariuri": "Flashscore",
+                            "value_procent": round(((cota_1/media)-1)*100, 2)
+                        })
+                        
+                        msg = f"🔥 VALUE BET: {gazda} vs {oaspete} | Cota: {cota_1}"
                         send_telegram(msg)
-                        gasite += 1
-                        if gasite >= 3: break # Trimitem maxim 3 mesaje pe rulare ca să nu facem spam
             except:
                 continue
+        
+        # SALVARE ÎN JSON
+        output = {
+            "ultima_actualizare": datetime.now().strftime("%d %B %Y, %H:%M"),
+            "meciuri": meciuri_gasite_pentru_json
+        }
+        with open('date_meciuri.json', 'w', encoding='utf-8') as f:
+            json.dump(output, f, indent=4, ensure_ascii=False)
+            
         browser.close()
 
 if __name__ == "__main__":
