@@ -1,41 +1,54 @@
 def get_data():
     # Folosim 'eu' pentru a include casele din Germania
-    response = requests.get(URL.replace("regions=eu", "regions=eu")) 
-    if response.status_code != 200: return []
+    response = requests.get(URL) # URL-ul are deja regions=eu din variabila globală
+    if response.status_code != 200: 
+        print(f"Eroare API: {response.status_code}")
+        return []
     
     data = response.json()
     lista = []
     
     for match in data:
-        # Căutăm Tipico și Betano
-        tipico = next((b for b in match['bookmakers'] if b['key'] == 'tipico'), None)
+        # Debug: Afișează ce case de pariuri sunt disponibile pentru acest meci
+        bookmakers = [b['key'] for b in match['bookmakers']]
+        print(f"Meci: {match['home_team']} vs {match['away_team']} | Case: {bookmakers}")
+
+        # Căutăm Pinnacle (ca referință) și Betano (ca sursă de pariu)
+        pinnacle = next((b for b in match['bookmakers'] if b['key'] == 'pinnacle'), None)
         betano = next((b for b in match['bookmakers'] if b['key'] == 'betano'), None)
         
-        # Dacă nu avem ambele case, sărim peste meci
-        if not tipico or not betano: 
-            continue
+        # Dacă nu găsim Pinnacle, sărim peste meci (nu avem referință)
+        if not pinnacle: continue
         
-        # Alegem Tipico ca referință (cota "reală") și Betano ca sursă de pariu
-        # Sau invers, depinde unde vrei să cauți valoarea
-        cota_referinta = tipico['markets'][0]['outcomes'][0]['price']
-        cota_betano = betano['markets'][0]['outcomes'][0]['price']
+        # Luăm cota de la Pinnacle
+        cota_reala = pinnacle['markets'][0]['outcomes'][0]['price']
+        
+        # Dacă avem Betano, comparăm, dacă nu, luăm Tipico
+        casa_pariu = betano if betano else next((b for b in match['bookmakers'] if b['key'] == 'tipico'), None)
+        
+        if not casa_pariu: continue
+        
+        cota_gasita = casa_pariu['markets'][0]['outcomes'][0]['price']
         
         # Calculăm valoarea
-        # Dacă cota Betano este mai mare decât cea de la Tipico, avem "Value"
-        value_procent = round(((cota_betano / cota_referinta) - 1) * 100, 2)
-        is_value = value_procent > 3.0 # Prag de 3% pentru a filtra
+        value_procent = round(((cota_gasita / cota_reala) - 1) * 100, 2)
         
+        # Definim ce înseamnă Value pentru tine (ex: > 2%)
+        is_value = value_procent > 2.0 
+        
+        meci = {
+            "echipa_gazda": match['home_team'],
+            "echipa_oaspete": match['away_team'],
+            "cota_1": cota_gasita,
+            "cota_reala": cota_reala,
+            "value_procent": value_procent,
+            "is_value": is_value
+        }
+        
+        # Trimitem notificare doar dacă este un Value Bet real
         if is_value:
-            meci = {
-                "echipa_gazda": match['home_team'],
-                "echipa_oaspete": match['away_team'],
-                "cota_1": cota_betano,
-                "cota_reala": cota_referinta,
-                "value_procent": value_procent,
-                "is_value": True
-            }
-            lista.append(meci)
-            # Trimitem notificare doar dacă e value
             send_telegram_message(meci)
+            
+        lista.append(meci)
             
     return lista
